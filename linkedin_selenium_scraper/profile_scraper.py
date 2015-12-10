@@ -14,11 +14,11 @@ class LinkedinProfile:
       return
 
     # setup selenium & get page
-    profile = webdriver.Firefox()
+    profile = webdriver.Firefox(url)
     profile.implicitly_wait(2)
     profile.get("")
     WebDriverWait(profile, 10)
-    profile.execute_script("window.scrollBy(0,1400)")
+    profile.execute_script("window.scrollBy(0,100000)")
 
     # handle name, headline and summary
     self.name = profile.find_element_by_id('name').text
@@ -138,20 +138,58 @@ class LinkedinProfile:
 
       self.certifications.append(certification)
 
-
-
     # get skills
+    skills = profile.find_elements_by_class_name('skill')
+    self.skills = []
+    for current_skill in skills:
+      classes = current_skill.get_attribute('class')
+      if 'see-more' in classes or 'see-less' in classes:
+        continue
+      skill = Skill()
+
+      a_tag = current_skill.find_element_by_tag_name('a')
+      skill.name = a_tag.find_element_by_tag_name('span').text
+      skill.url = a_tag.get_attribute('href')
+
+      self.skills.append(skill)
 
     # get education
+    schools = profile.find_elements_by_class_name('school')
+    self.schools = []
+    for institution in schools:
+      logo = institution.find_element_by_class_name('logo')
+      school = School()
+
+      try:
+        school.url = logo.find_element_by_tag_name('a').get_attribute('href')
+        school.image = logo.find_element_by_tag_name('a').find_element_by_tag_name('img').\
+          get_attribute('src')
+      except NoSuchElementException:
+        school.url = None
+        school.image = None
+
+      title = institution.find_element_by_class_name('item-title')
+      school.name = title.find_element_by_tag_name('a').text
+      if not school.url:
+        school.url = title.find_element_by_tag_name('a').get_attribute('href')
+
+      school.degree = institution.find_element_by_class_name('item-subtitle').text
+      date_range = institution.find_element_by_class_name('meta').find_elements_by_tag_name('time')
+      if date_range:
+        school.from_date = date_range[0]
+        school.to_date = None
+        if len(date_range) > 1:
+          school.to_date = date_range[1]
+
+      self.schools.append(school)
+
+
 
     # get volunteering
 
     # get languages
 
     # get groups
-
-
-
 
 class SummaryInfo:
   def __init__(self, current, previous, education):
@@ -165,6 +203,12 @@ class Experience:
 
 
 class Certification:
+  pass
+
+class Skill:
+  pass
+
+class School:
   pass
 
 
