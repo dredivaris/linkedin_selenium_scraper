@@ -14,9 +14,9 @@ class LinkedinProfile:
       return
 
     # setup selenium & get page
-    profile = webdriver.Firefox(url)
+    profile = webdriver.Firefox()
     profile.implicitly_wait(2)
-    profile.get("")
+    profile.get(url)
     WebDriverWait(profile, 10)
     profile.execute_script("window.scrollBy(0,100000)")
 
@@ -41,7 +41,14 @@ class LinkedinProfile:
     education = profile.find_element_by_xpath(
         '//*[@id="topcard"]/div[1]/div[2]/div/table/tbody/tr[3]/td/ol/li/a').text
 
-    self.summary_info = SummaryInfo(current_position, previous_positions, education)
+    # TODO: get summary
+    try:
+      summary_text = profile.find_element_by_id('summary').find_element_by_tag_name('p').text
+    except NoSuchElementException:
+      summary_text = None
+
+    self.summary_info = SummaryInfo(current_position, previous_positions, education, summary_text)
+
 
     # parse experience
     positions = profile.find_elements_by_class_name('position')
@@ -78,7 +85,6 @@ class LinkedinProfile:
     certifications = profile.find_elements_by_class_name('certification')
     self.certifications = []
     for cert in certifications:
-      print ('------------------------------ at: ', i)
       certification = Certification()
 
       try:
@@ -183,24 +189,61 @@ class LinkedinProfile:
 
       self.schools.append(school)
 
+    # get volunteer opportunities, causes, and organizations
+    extra_sections = profile.find_element_by_id('volunteering').\
+      find_elements_by_class_name('extra-section')
 
-
-    # get volunteering
+    self.opportunities, self.causes, self.organizations = [], [], []
+    for section in extra_sections:
+      sect = section.find_element_by_class_name('title')
+      for item in section.find_elements_by_tag_name('li'):
+        ex = VolunteeringExperiences()
+        ex.text = item.text
+        if 'Opportunities' in sect.text:
+          self.opportunities.append(ex)
+        elif 'Causes' in sect.text:
+          self.causes.append(ex)
+        elif 'Organizations' in sect.text:
+          self.organizations.append(ex)
 
     # get languages
+    languages = profile.find_elements_by_class_name('language')
+    self.languages = []
+    for language in languages:
+      lang = Language()
+      lang.name = language.find_element_by_class_name('name').text
+      lang.proficiency_level = language.find_element_by_class_name('proficiency').text
+      self.languages.append(lang)
 
-    # get groups
+    # get interests
+    interests = profile.find_element_by_id('interests').find_elements_by_class_name('interest')
+    self.interests = []
+    for interest in interests:
+      current_interest = Interest()
+      classes = interest.get_attribute('class')
+      if 'see-more' in classes or 'see-less' in classes:
+        continue
+      try:
+        interest = interest.find_element_by_tag_name('a')
+      except NoSuchElementException:
+        interest = interest.find_element_by_tag_name('span')
+        current_interest.name = interest.text
+        current_interest.url = None
+      else:
+        current_interest.name = interest.get_attribute('title')
+        current_interest.url = interest.get_attribute('href')
+      self.interests.append(current_interest)
 
 class SummaryInfo:
-  def __init__(self, current, previous, education):
+  def __init__(self, current, previous, education, summary):
     self.current_position = current
     self.previous_position = previous
     self.education = education
+    self.summary = summary
 
 
 class Experience:
     pass
-
 
 class Certification:
   pass
@@ -211,25 +254,14 @@ class Skill:
 class School:
   pass
 
+class VolunteeringExperiences:
+  pass
 
-from datetime import datetime
-datetime.now()
-from selenium import webdriver
-driver = webdriver.Firefox()
-driver.get("http://linkedin.com/in/andreasdivaris")
-driver.find_element_by_css_selector('.positions')
-positions=_
-positions
-positions.screenshot()
-positions.screenshot('neat.png')
-positions.id
-positions.location
-positions.parent
-positions.parent()
-positions.rect
-positions.screenshot
-positions.text
-positions.find_elements_by_class_name('position')
-elements = _
-elements[0].text
-get_ipython().magic('save work_with_selenium 0-22')
+class Causes:
+  pass
+
+class Language:
+  pass
+
+class Interest:
+  pass`
