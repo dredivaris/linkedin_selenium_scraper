@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 class LinkedinProfile:
   def __init__(self, url):
     # verify proper linkedin profile url:
-    is_linkedin_profile_url = re.compile(r'http://linkedin\.com/in/[a-zA-Z]+')
+    is_linkedin_profile_url = re.compile(r'http(s)?://(www\.)?linkedin\.com/in/[a-zA-Z]+')
     matched = is_linkedin_profile_url.match(url)
 
     if not matched:
@@ -41,7 +41,6 @@ class LinkedinProfile:
     education = profile.find_element_by_xpath(
         '//*[@id="topcard"]/div[1]/div[2]/div/table/tbody/tr[3]/td/ol/li/a').text
 
-    # TODO: get summary
     try:
       summary_text = profile.find_element_by_id('summary').find_element_by_tag_name('p').text
     except NoSuchElementException:
@@ -264,4 +263,4 @@ class Language:
   pass
 
 class Interest:
-  pass`
+  pass
