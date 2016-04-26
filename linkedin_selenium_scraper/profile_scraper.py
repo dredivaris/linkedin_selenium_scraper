@@ -2,47 +2,79 @@ import re
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 class LinkedinProfile:
-  def __init__(self, url):
+  def _login(self, email, password):
+    sign_in = self.profile.find_element_by_class_name('sign-in-link')
+    sign_in.click()
+    self.profile.implicitly_wait(2)
+
+    # get input elements
+    email_input = self.profile.find_element_by_id('session_key-login')
+    password_input = self.profile.find_element_by_id('session_password-login')
+    submit = self.profile.find_element_by_id('btn-primary')
+
+    # enter credentials
+    email_input.send_keys(email)
+    password_input.send_keys(password)
+    submit.click()
+
+    self.profile.implicitly_wait(3)
+
+    # if parsing profile of currently logged in user, we need to enter preview mode
+    try:
+      preview_button = self.profile.find_element_by_class_name('preview-profile')
+    except NoSuchElementException:
+      pass
+    else:
+      preview_button.click()
+
+  def __init__(self, url, email, password):
     # verify proper linkedin profile url:
     is_linkedin_profile_url = re.compile(r'http(s)?://(www\.)?linkedin\.com/in/[a-zA-Z]+')
     matched = is_linkedin_profile_url.match(url)
 
-    if not matched:
-      return
-
     # setup selenium & get page
-    profile = webdriver.Firefox()
+    self.profile = webdriver.Firefox()
+    profile = self.profile
     profile.implicitly_wait(2)
     profile.get(url)
-    WebDriverWait(profile, 10)
-    profile.execute_script("window.scrollBy(0,100000)")
+    WebDriverWait(profile, 5)
+
+    self._login(email, password)
+
+    profile.implicitly_wait(15)
+    profile.execute_script("window.scrollBy(0,1000000)")
 
     # handle name, headline and summary
     self.name = profile.find_element_by_id('name').text
     self.connections = profile.find_element_by_class_name('member-connections').\
       text.replace('\n', ' ')
     self.headline = profile.find_element_by_class_name('profile-overview-content').\
-      find_element_by_class_name('headline').text
-    self.locality = profile.find_element_by_id('demographics').\
+      find_element_by_id('headline').text
+    self.locality = profile.find_element_by_id('location').\
       find_element_by_class_name('locality').text
-    self.industry = profile.find_element_by_xpath('//*[@id="demographics"]/dd[2]').text
+    self.industry = profile.find_element_by_id('location').\
+      find_element_by_class_name('industry').text
 
-    current_position = profile.find_element_by_xpath(
-        '//*[@id="topcard"]/div[1]/div[2]/div/table/tbody/tr[1]/td/ol/li/span/a').text
 
-    previous_positions = profile.find_element_by_xpath(
-      '//*[@id="topcard"]/div[1]/div[2]/div/table/tbody/tr[2]/td/ol').\
+    current_position = profile.find_element_by_id('overview-summary-current').\
+      find_element_by_tag_name('td').find_element_by_tag_name('a').text
+
+    previous_positions = profile.find_element_by_id('overview-summary-past').\
+      find_element_by_tag_name('td').\
       find_elements_by_tag_name('li')
     previous_positions = [p.text for p in previous_positions]
 
-    education = profile.find_element_by_xpath(
-        '//*[@id="topcard"]/div[1]/div[2]/div/table/tbody/tr[3]/td/ol/li/a').text
+    education = profile.find_element_by_id('overview-summary-education').\
+      find_element_by_tag_name('td').\
+      find_elements_by_tag_name('li')
+    education = ','.join([p.text for p in education])
 
     try:
-      summary_text = profile.find_element_by_id('summary').find_element_by_tag_name('p').text
+      summary_text = profile.find_element_by_class_name('summary').find_element_by_class_name('description').text
     except NoSuchElementException:
       summary_text = None
 
@@ -50,96 +82,117 @@ class LinkedinProfile:
 
 
     # parse experience
-    positions = profile.find_elements_by_class_name('position')
+    positions = profile.find_element_by_id('background-experience').find_elements_by_class_name('section-item')
     self.experiences = []
     for position in positions:
       experience = Experience()
-      company_url = position.find_element_by_class_name('logo').find_element_by_tag_name('a')
-      experience.company_profile_url = company_url.get_attribute('href')
-      experience.company_image_url = company_url.find_element_by_tag_name('img').\
-        get_attribute('src')
 
-      experience.position_title = position.find_element_by_class_name('item-title').\
+      try:
+        logo = position.find_element_by_class_name('experience-logo')
+      except NoSuchElementException:
+        experience.company_url = None
+        experience.company_image_url = None
+      else:
+        experience.company_url = logo.find_element_by_tag_name('a').get_attribute('href')
+        experience.company_image_url = logo.find_element_by_tag_name('img').get_attribute('src')
+
+      try:
+        position_section = position.find_element_by_tag_name('h4').find_element_by_tag_name('a')
+      except NoSuchElementException:
+        experience.position_title = None
+        experience.position_title_url = None
+      else:
+        experience.position_title = position_section.text
+        experience.position_title_url = position_section.get_attribute('href')
+
+      experience.company_title = position.find_element_by_tag_name('header').find_elements_by_tag_name('h5')[1].\
         find_element_by_tag_name('a').text
-      experience.position_title_url = position.find_element_by_class_name('item-title').\
-        find_element_by_tag_name('a').get_attribute('href')
 
-      experience.company_title = position.find_element_by_class_name('item-subtitle').\
-        find_element_by_tag_name('a').text
+      # experience.date_range = position.find_element_by_class_name('meta').\
+      #   find_element_by_class_name('date-range').text
 
-      experience.date_range = position.find_element_by_class_name('meta').\
-        find_element_by_class_name('date-range').text
-      from_to_times = position.find_element_by_class_name('meta').\
-        find_element_by_class_name('date-range').find_elements_by_tag_name('time')
-      experience.from_date = from_to_times[0].text
-      experience.to_date = None
-      if len(from_to_times) > 1:
-        experience.to_date = from_to_times[1].text
-      experience.time_at_position = re.search(r"\((.*)\)", experience.date_range).group(1)
+      date_section = position.find_element_by_class_name('date-header-field').\
+        find_element_by_class_name('experience-date-locale')
+
+      date_section = position.find_element_by_class_name('experience-date-locale')
+
+      range = date_section.find_elements_by_tag_name('time')
+      experience.from_date = range[0].text
+      if len(range) == 2:
+        experience.to_date = range[1].text
+      else:
+        experience.to_date = 'present'
+
+      experience.time_at_position = date_section.text.split('(')[1].split(')')[0]
+      experience.position_location = date_section.text.split('(')[1].split(')')[1]
+
+      # from_to_times = position.find_element_by_class_name('meta').\
+      #   find_element_by_class_name('date-range').find_elements_by_tag_name('time')
+      # experience.from_date = from_to_times[0].text
+      # experience.to_date = None
+      # if len(from_to_times) > 1:
+      #   experience.to_date = from_to_times[1].text
+      # experience.time_at_position = re.search(r"\((.*)\)", experience.date_range).group(1)
 
       experience.description = position.find_element_by_class_name('description').text
       self.experiences.append(experience)  # TODO: append at start/end to have it be chronological?
 
     # get certifications
-    certifications = profile.find_elements_by_class_name('certification')
+    certifications = [p for p in profile.find_element_by_class_name('background-certifications').\
+      find_elements_by_xpath("//*[contains(@id, 'certification-')]") if '-view' in p.get_attribute('id')]
+
     self.certifications = []
     for cert in certifications:
       certification = Certification()
 
       try:
-        certification.issuer_url = cert.find_element_by_class_name('logo').\
+        certification.issuer_url_or_certificate_url = cert.find_element_by_tag_name('h4').\
           find_element_by_tag_name('a').get_attribute('href')
+      except NoSuchElementException:
+        certification.issuer_url_or_certificate_url = None
+
+      try:
+        certification.issuer_url = cert.find_element_by_tag_name('a').get_attribute('href')
       except NoSuchElementException:
         certification.issuer_url = None
 
       try:
-        certification.cert_url = cert.find_element_by_class_name('item-title').\
+        certification.cert_url = cert.find_element_by_class_name('certification-logo').\
           find_element_by_tag_name('a').get_attribute('href')
       except NoSuchElementException:
         certification.cert_url = None
 
-      certification.issuer_image_url = '' # TODO
       try:
-        certification.title = cert.find_element_by_class_name('item-title').\
-          find_element_by_tag_name('a').text
+        certification.issuer_image_url = cert.find_element_by_class_name('certification-logo').\
+          find_element_by_tag_name('img').get_attribute('src')
       except NoSuchElementException:
-        certification.title = cert.find_element_by_class_name('item-title').text
+        certification.issuer_image_url = None
 
       try:
-        certification.course_url = cert.find_element_by_class_name('item-title').\
-          find_element_by_tag_name('a').get_attribute('href')
+        certification.title = cert.find_element_by_tag_name('h4').\
+          find_element_by_tag_name('a').text.replace('(Link)', '')
       except NoSuchElementException:
-        certification.course_url = None
+        certification.title = None
 
       try:
-        certification.course_image = cert.find_element_by_tag_name('img').get_attribute('src')
+        inst = cert.find_element_by_tag_name('hgroup').find_elements_by_tag_name('h5')
       except NoSuchElementException:
-        certification.course_image = None
-
-      try:
-        certification.institution = cert.find_element_by_class_name('item-subtitle').\
-          find_element_by_tag_name('a').text
-      except NoSuchElementException:
-        institution = cert.find_element_by_class_name('item-subtitle').text
-        if ', License ' in institution:
-          certification.institution = institution.split(', License ')[0]
-          certification.institution_license = institution.split(', License ')[1]
+        certification.institution = None
+        certification.license = None
       else:
-        certification.institution_license = None
+        inst = inst[0].text if len(inst) == 1 else inst[1].text
+        if 'License' in inst:
+          inst = inst.split(', License ')
+          certification.institution, certification.license = inst
+        else:
+          certification.institution = inst
+          certification.license = None
 
       try:
-        certification.date_range = cert.find_element_by_class_name('meta').\
-          find_element_by_class_name('date-range').text
+        certification.date = cert.find_element_by_class_name('certification-date').\
+          find_element_by_tag_name('time').text
       except NoSuchElementException:
-        certification.date_range = None
-        certification.from_date = None
-        certification.to_date = None
-      else:
-        from_to_times = cert.find_element_by_class_name('meta').find_element_by_class_name('date-range').find_elements_by_tag_name('time')
-        certification.from_date = from_to_times[0].text
-        certification.to_date = None
-        if len(from_to_times) > 1:  # may way to remove
-          certification.to_date = from_to_times[1].text
+        certification.date = None
 
       self.certifications.append(certification)
 
