@@ -7,7 +7,10 @@ from selenium.webdriver.support import expected_conditions as EC
 
 class LinkedinProfile:
   def _login(self, email, password):
-    sign_in = self.profile.find_element_by_class_name('sign-in-link')
+    try:
+      sign_in = self.profile.find_element_by_class_name('sign-in-link')
+    except NoSuchElementException:
+      sign_in = self.profile.find_element_by_partial_link_text('Sign In')
     sign_in.click()
     self.profile.implicitly_wait(2)
 
@@ -27,7 +30,10 @@ class LinkedinProfile:
     try:
       preview_button = self.profile.find_element_by_class_name('preview-profile')
     except NoSuchElementException:
-      pass
+      go_to_profile = self.profile.find_element_by_partial_link_text('Improve your profile')
+      go_to_profile.click()
+      preview_button = self.profile.find_element_by_class_name('preview-profile')
+      preview_button.click()
     else:
       preview_button.click()
 
@@ -43,6 +49,7 @@ class LinkedinProfile:
     profile.get(url)
     WebDriverWait(profile, 5)
 
+    # may not be necessary
     self._login(email, password)
 
     profile.implicitly_wait(15)
@@ -107,13 +114,6 @@ class LinkedinProfile:
 
       experience.company_title = position.find_element_by_tag_name('header').find_elements_by_tag_name('h5')[1].\
         find_element_by_tag_name('a').text
-
-      # experience.date_range = position.find_element_by_class_name('meta').\
-      #   find_element_by_class_name('date-range').text
-
-      date_section = position.find_element_by_class_name('date-header-field').\
-        find_element_by_class_name('experience-date-locale')
-
       date_section = position.find_element_by_class_name('experience-date-locale')
 
       range = date_section.find_elements_by_tag_name('time')
@@ -125,14 +125,6 @@ class LinkedinProfile:
 
       experience.time_at_position = date_section.text.split('(')[1].split(')')[0]
       experience.position_location = date_section.text.split('(')[1].split(')')[1]
-
-      # from_to_times = position.find_element_by_class_name('meta').\
-      #   find_element_by_class_name('date-range').find_elements_by_tag_name('time')
-      # experience.from_date = from_to_times[0].text
-      # experience.to_date = None
-      # if len(from_to_times) > 1:
-      #   experience.to_date = from_to_times[1].text
-      # experience.time_at_position = re.search(r"\((.*)\)", experience.date_range).group(1)
 
       experience.description = position.find_element_by_class_name('description').text
       self.experiences.append(experience)  # TODO: append at start/end to have it be chronological?
@@ -197,94 +189,76 @@ class LinkedinProfile:
       self.certifications.append(certification)
 
     # get skills
-    skills = profile.find_elements_by_class_name('skill')
-    self.skills = []
-    for current_skill in skills:
-      classes = current_skill.get_attribute('class')
-      if 'see-more' in classes or 'see-less' in classes:
-        continue
-      skill = Skill()
+    # skills = profile.find_elements_by_id('profile-skills').find_elements_by_tag_name('ul')
+    skills = [s for s in profile.find_element_by_id('profile-skills').
+      find_elements_by_tag_name('ul') if 'skills-section' in s.get_attribute('class')]
+    top_skills, other_skills = skills[0], skills[1]
 
-      a_tag = current_skill.find_element_by_tag_name('a')
-      skill.name = a_tag.find_element_by_tag_name('span').text
-      skill.url = a_tag.get_attribute('href')
+    def get_skills_list(skills_selenium):
+      skills_selenium_list = skills_selenium.find_elements_by_class_name('endorse-item')
+      parsed_skills = []
+      for current in skills_selenium_list:
+        skill = Skill()
+        try:
+          skill.name = current.find_element_by_class_name('endorse-item-name').text
+          skill.url = current.find_element_by_class_name('endorse-item-name-text').get_attribute('href')
+        except NoSuchElementException:
+          continue
+        parsed_skills.append(skill)
+      return parsed_skills
 
-      self.skills.append(skill)
+    self.top_skills = get_skills_list(top_skills)
+    self.other_skills = get_skills_list(other_skills)
 
     # get education
-    schools = profile.find_elements_by_class_name('school')
+    schools = profile.find_elements_by_class_name('education')
     self.schools = []
     for institution in schools:
-      logo = institution.find_element_by_class_name('logo')
+      logo = institution.find_element_by_class_name('education-logo')
       school = School()
 
       try:
-        school.url = logo.find_element_by_tag_name('a').get_attribute('href')
-        school.image = logo.find_element_by_tag_name('a').find_element_by_tag_name('img').\
-          get_attribute('src')
+        school.url = institution.find_element_by_tag_name('a').get_attribute('href')
+        school.image = logo.find_element_by_tag_name('img').get_attribute('src')
       except NoSuchElementException:
         school.url = None
         school.image = None
 
-      title = institution.find_element_by_class_name('item-title')
-      school.name = title.find_element_by_tag_name('a').text
+      title_and_degree = institution.find_element_by_tag_name('header')
+      title = title_and_degree.find_element_by_tag_name('a')
+      school.name = title.text
       if not school.url:
         school.url = title.find_element_by_tag_name('a').get_attribute('href')
 
-      school.degree = institution.find_element_by_class_name('item-subtitle').text
-      date_range = institution.find_element_by_class_name('meta').find_elements_by_tag_name('time')
+      school.degree = '{} {}'.format(title_and_degree.find_element_by_class_name('degree').text,
+                                     title_and_degree.find_element_by_class_name('major').text)
+      date_range = institution.find_element_by_class_name('education-date').find_elements_by_tag_name('time')
       if date_range:
-        school.from_date = date_range[0]
+        school.from_date = date_range[0].text
         school.to_date = None
         if len(date_range) > 1:
-          school.to_date = date_range[1]
+          school.to_date = date_range[1].text.replace('- ', '')
 
       self.schools.append(school)
 
     # get volunteer opportunities, causes, and organizations
-    extra_sections = profile.find_element_by_id('volunteering').\
-      find_elements_by_class_name('extra-section')
+    opportunities = profile.find_element_by_class_name('opportunities').find_elements_by_tag_name('li')
+    causes = profile.find_element_by_id('volunteering-causes-view').find_element_by_class_name('volunteering-listing').find_elements_by_tag_name('li')
+    organizations = profile.find_element_by_id('volunteering-organizations-view').find_elements_by_tag_name('li')
 
-    self.opportunities, self.causes, self.organizations = [], [], []
-    for section in extra_sections:
-      sect = section.find_element_by_class_name('title')
-      for item in section.find_elements_by_tag_name('li'):
-        ex = VolunteeringExperiences()
-        ex.text = item.text
-        if 'Opportunities' in sect.text:
-          self.opportunities.append(ex)
-        elif 'Causes' in sect.text:
-          self.causes.append(ex)
-        elif 'Organizations' in sect.text:
-          self.organizations.append(ex)
+    self.opportunities = [i.text for i in opportunities]
+    self.causes = [i.text for i in causes]
+    self.organizations = [i.text for i in organizations]
 
     # get languages
-    languages = profile.find_elements_by_class_name('language')
+    languages = profile.find_element_by_id('languages-view').find_elements_by_tag_name('li')
     self.languages = []
     for language in languages:
       lang = Language()
-      lang.name = language.find_element_by_class_name('name').text
-      lang.proficiency_level = language.find_element_by_class_name('proficiency').text
+      lang.name = language.find_element_by_tag_name('h4').text
+      lang.proficiency_level = language.find_element_by_class_name('languages-proficiency').text
       self.languages.append(lang)
 
-    # get interests
-    interests = profile.find_element_by_id('interests').find_elements_by_class_name('interest')
-    self.interests = []
-    for interest in interests:
-      current_interest = Interest()
-      classes = interest.get_attribute('class')
-      if 'see-more' in classes or 'see-less' in classes:
-        continue
-      try:
-        interest = interest.find_element_by_tag_name('a')
-      except NoSuchElementException:
-        interest = interest.find_element_by_tag_name('span')
-        current_interest.name = interest.text
-        current_interest.url = None
-      else:
-        current_interest.name = interest.get_attribute('title')
-        current_interest.url = interest.get_attribute('href')
-      self.interests.append(current_interest)
 
 class SummaryInfo:
   def __init__(self, current, previous, education, summary):
@@ -316,4 +290,7 @@ class Language:
   pass
 
 class Interest:
+  pass
+
+class Group:
   pass
