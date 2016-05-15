@@ -259,6 +259,8 @@ class LinkedinProfile:
       lang.proficiency_level = language.find_element_by_class_name('languages-proficiency').text
       self.languages.append(lang)
 
+    profile.close()
+
 
 class SummaryInfo:
   def __init__(self, current, previous, education, summary):
