@@ -2,7 +2,14 @@ import re
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+
+
+class Descriptor:
+    def __repr__(self):
+        trunc = lambda text, length: (text[:length] + '..') if text and len(text) > length else text
+        return '{} {}'.format(
+            self.__class__.__name__, ' - '.
+                join('     ( {}: {} )\n'.format(k, trunc(v, 18)) for k, v in self.__dict__.items()))
 
 
 class LinkedinProfile:
@@ -262,7 +269,7 @@ class LinkedinProfile:
     profile.close()
 
 
-class SummaryInfo:
+class SummaryInfo(Descriptor):
   def __init__(self, current, previous, education, summary):
     self.current_position = current
     self.previous_position = previous
@@ -270,29 +277,37 @@ class SummaryInfo:
     self.summary = summary
 
 
-class Experience:
+class Experience(Descriptor):
     pass
 
-class Certification:
+
+class Certification(Descriptor):
   pass
 
-class Skill:
+
+class Skill(Descriptor):
   pass
 
-class School:
+
+class School(Descriptor):
   pass
 
-class VolunteeringExperiences:
+
+class VolunteeringExperiences(Descriptor):
   pass
 
-class Causes:
+
+class Causes(Descriptor):
   pass
 
-class Language:
+
+class Language(Descriptor):
   pass
 
-class Interest:
+
+class Interest(Descriptor):
   pass
 
-class Group:
+
+class Group(Descriptor):
   pass
