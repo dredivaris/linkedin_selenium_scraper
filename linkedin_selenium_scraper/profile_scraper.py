@@ -15,31 +15,31 @@ class Descriptor:
 class LinkedinProfile:
   def _login(self, email, password):
     try:
-      sign_in = self.profile.find_element_by_class_name('sign-in-link')
+      sign_in = self._profile.find_element_by_class_name('sign-in-link')
     except NoSuchElementException:
-      sign_in = self.profile.find_element_by_partial_link_text('Sign In')
+      sign_in = self._profile.find_element_by_partial_link_text('Sign In')
     sign_in.click()
-    self.profile.implicitly_wait(2)
+    self._profile.implicitly_wait(2)
 
     # get input elements
-    email_input = self.profile.find_element_by_id('session_key-login')
-    password_input = self.profile.find_element_by_id('session_password-login')
-    submit = self.profile.find_element_by_id('btn-primary')
+    email_input = self._profile.find_element_by_id('session_key-login')
+    password_input = self._profile.find_element_by_id('session_password-login')
+    submit = self._profile.find_element_by_id('btn-primary')
 
     # enter credentials
     email_input.send_keys(email)
     password_input.send_keys(password)
     submit.click()
 
-    self.profile.implicitly_wait(3)
+    self._profile.implicitly_wait(3)
 
     # if parsing profile of currently logged in user, we need to enter preview mode
     try:
-      preview_button = self.profile.find_element_by_class_name('preview-profile')
+      preview_button = self._profile.find_element_by_class_name('preview-profile')
     except NoSuchElementException:
-      go_to_profile = self.profile.find_element_by_partial_link_text('Improve your profile')
+      go_to_profile = self._profile.find_element_by_partial_link_text('Improve your profile')
       go_to_profile.click()
-      preview_button = self.profile.find_element_by_class_name('preview-profile')
+      preview_button = self._profile.find_element_by_class_name('preview-profile')
       preview_button.click()
     else:
       preview_button.click()
@@ -50,8 +50,8 @@ class LinkedinProfile:
     matched = is_linkedin_profile_url.match(url)
 
     # setup selenium & get page
-    self.profile = webdriver.Firefox()
-    profile = self.profile
+    self._profile = webdriver.Firefox()
+    profile = self._profile
     profile.implicitly_wait(2)
     profile.get(url)
     WebDriverWait(profile, 5)
