@@ -12,7 +12,7 @@ class Descriptor:
                 join('     ( {}: {} )\n'.format(k, trunc(v, 18)) for k, v in self.__dict__.items()))
 
 
-class LinkedinProfile:
+class LinkedinProfile(Descriptor):
   def _login(self, email, password):
     try:
       sign_in = self._profile.find_element_by_class_name('sign-in-link')
