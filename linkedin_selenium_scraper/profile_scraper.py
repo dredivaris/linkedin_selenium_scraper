@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 class Descriptor:
     def __repr__(self):
         trunc = lambda text, length: (text[:length] + '..') if text and len(text) > length else text
-        return '{} {}'.format(
+        return '{} \n{}'.format(
             self.__class__.__name__, ' - '.
                 join('     ( {}: {} )\n'.format(k, trunc(v, 18)) for k, v in self.__dict__.items()))
 
