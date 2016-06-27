@@ -211,6 +211,8 @@ class LinkedinProfile(Descriptor):
         skill = Skill()
         try:
           skill.name = current.find_element_by_class_name('endorse-item-name').text
+          if not skill.name:
+              skill.name = current.find_element_by_class_name('endorsable').get_attribute('data-endorsed-item-name')
           skill.url = current.find_element_by_class_name('endorse-item-name-text').get_attribute('href')
         except NoSuchElementException:
           continue
