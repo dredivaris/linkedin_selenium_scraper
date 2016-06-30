@@ -207,7 +207,8 @@ class LinkedinProfile(Descriptor):
 
     see_more = profile.find_element_by_id('background-skills-container').find_element_by_class_name(
         'see-more-less').find_element_by_tag_name('a')
-    ActionChains(profile).move_to_element(see_more).click(see_more).perform()
+    ActionChains(profile).move_to_element(see_more).perform()
+    ActionChains.click(see_more).perform()
 
     def get_skills_list(skills_selenium):
       skills_selenium_list = skills_selenium.find_elements_by_class_name('endorse-item')
