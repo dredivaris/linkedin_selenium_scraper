@@ -64,7 +64,7 @@ class LinkedinProfile(Descriptor):
     self._login(email, password)
 
     profile.implicitly_wait(15)
-    profile.execute_script("window.scrollBy(0,800000)")
+    profile.execute_script("window.scrollBy(0,500000)")
 
     # handle name, headline and summary
     self.name = profile.find_element_by_id('name').text
