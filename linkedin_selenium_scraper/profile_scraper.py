@@ -1,7 +1,6 @@
 import re
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 
 
@@ -64,7 +63,7 @@ class LinkedinProfile(Descriptor):
     self._login(email, password)
 
     profile.implicitly_wait(15)
-    profile.execute_script("window.scrollBy(0,500000)")
+    profile.execute_script("window.scrollBy(0,4400)")
 
     # handle name, headline and summary
     self.name = profile.find_element_by_id('name').text
@@ -206,9 +205,7 @@ class LinkedinProfile(Descriptor):
     top_skills, other_skills = skills[0], skills[1]
 
     see_more = profile.find_element_by_id('background-skills-container').find_element_by_class_name(
-        'see-more-less').find_element_by_tag_name('a')
-    ActionChains(profile).move_to_element(see_more).perform()
-    ActionChains.click(see_more).perform()
+        'see-more-less').find_element_by_tag_name('a').click()
 
     def get_skills_list(skills_selenium):
       skills_selenium_list = skills_selenium.find_elements_by_class_name('endorse-item')
